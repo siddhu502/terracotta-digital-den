@@ -150,5 +150,35 @@
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
+    font-family: var(--font-sans);
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: -0.015em;
   }
 }
+
+@utility font-display {
+  font-family: var(--font-display);
+}
+
+@utility bg-hero-wash {
+  background-image:
+    radial-gradient(60% 90% at 12% 0%, oklch(0.905 0.048 74 / 0.85) 0%, transparent 60%),
+    radial-gradient(50% 80% at 92% 10%, oklch(0.556 0.142 38.5 / 0.18) 0%, transparent 65%);
+}
+
+@utility card-lift {
+  transition:
+    transform 220ms ease,
+    box-shadow 220ms ease;
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lift);
+  }
+}
+
