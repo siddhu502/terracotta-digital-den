@@ -26,6 +26,18 @@ export type ProductWithPreview = Product & { preview_url: string | null };
 const IMAGE_BUCKET = "product-images";
 const FILE_BUCKET = "product-files";
 
+const CATEGORY_LABELS: Record<string, string> = {
+  Planners: "योजना वही",
+  Resumes: "रेझ्युमे",
+  "Art Prints": "आर्ट प्रिंट्स",
+  Guides: "मार्गदर्शिका",
+  Templates: "टेम्पलेट्स",
+};
+
+export function displayCategory(category: string) {
+  return CATEGORY_LABELS[category] ?? category;
+}
+
 /** Cover images live in a private bucket, so storage paths need signed URLs. */
 async function resolveImageUrls(products: Product[]): Promise<ProductWithPreview[]> {
   const paths = products
@@ -111,4 +123,4 @@ export async function deleteProduct(id: string) {
 }
 
 export const formatPrice = (price: number) =>
-  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(price);
+  new Intl.NumberFormat("mr-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(price);

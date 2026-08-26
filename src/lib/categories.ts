@@ -17,10 +17,10 @@ export async function fetchCategories(): Promise<CategoryRow[]> {
 
 export async function createCategory(name: string) {
   const trimmed = name.trim();
-  if (!trimmed) throw new Error("Please enter a category name.");
+  if (!trimmed) throw new Error("कृपया श्रेणीचे नाव लिहा.");
   const { error } = await supabase.from("categories").insert({ name: trimmed });
   if (error) {
-    if (error.code === "23505") throw new Error("That category already exists.");
+    if (error.code === "23505") throw new Error("ही श्रेणी आधीच आहे.");
     throw error;
   }
 }
