@@ -12,7 +12,6 @@ type RazorpayOptions = {
   description?: string;
   order_id: string;
   prefill?: { email?: string };
-  theme?: { color?: string };
   handler: (response: RazorpaySuccess) => void;
   modal?: { ondismiss?: () => void };
 };
@@ -31,7 +30,7 @@ export function loadRazorpay(): Promise<void> {
     const script = document.createElement("script");
     script.src = "https://checkout.razorpay.com/v1/checkout.js";
     script.onload = () => resolve();
-    script.onerror = () => reject(new Error("Couldn't load the payment gateway."));
+    script.onerror = () => reject(new Error("पेमेंट विंडो उघडता आली नाही."));
     document.body.appendChild(script);
   });
   return loader;
