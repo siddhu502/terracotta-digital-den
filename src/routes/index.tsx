@@ -1,9 +1,10 @@
-import { useQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
-import { Download, Search, ShieldCheck, Sparkles } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { Download, Loader2, Search, ShieldCheck, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { NameDialog } from "@/components/name-dialog";
 import { SiteHeader } from "@/components/site-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,17 +17,23 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { supabase } from "@/integrations/supabase/client";
+import { BRAND_NAME } from "@/lib/brand";
+import { fetchCategories } from "@/lib/categories";
+import { downloadPersonalizedPdf } from "@/lib/download";
+import { createRazorpayOrder, verifyRazorpayPayment } from "@/lib/payments.functions";
 import {
-  CATEGORIES,
+  displayCategory,
   fetchProducts,
   formatPrice,
-  getDownloadUrl,
   type ProductWithPreview,
 } from "@/lib/products";
+import { fetchMyPurchasedProductIds } from "@/lib/purchases";
+import { loadRazorpay, type RazorpaySuccess } from "@/lib/razorpay-client";
 
-const TITLE = "PaperShop — Instant-download digital PDFs from independent makers";
+const TITLE = "Smart Ness — त्वरित डाउनलोड होणारे डिजिटल PDF";
 const DESCRIPTION =
-  "Browse planners, resume kits, art prints, guides and templates. Every product is a PDF you download the moment you buy.";
+  "प्लॅनर, रेझ्युमे किट, आर्ट प्रिंट, मार्गदर्शिका आणि टेम्पलेट्स. प्रत्येक PDF फक्त ₹49 — पेमेंट होताच तुमच्या नावासह डाउनलोड करा.";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -35,6 +42,8 @@ export const Route = createFileRoute("/")({
       { name: "description", content: DESCRIPTION },
       { property: "og:title", content: TITLE },
       { property: "og:description", content: DESCRIPTION },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: Marketplace,
@@ -49,6 +58,20 @@ function Marketplace() {
     queryKey: ["products"],
     queryFn: fetchProducts,
   });
+  const { data: categories } = useQuery({
+    queryKey: ["categories"],
+    queryFn: fetchCategories,
+  });
+  const { data: owned } = useQuery({
+    queryKey: ["my-purchased-ids"],
+    queryFn: fetchMyPurchasedProductIds,
+  });
+
+  const categoryNames = useMemo(() => {
+    const fromDb = (categories ?? []).map((c) => c.name);
+    const fromProducts = (data ?? []).map((p) => p.category);
+    return Array.from(new Set([...fromDb, ...fromProducts]));
+  }, [categories, data]);
 
   const products = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -58,7 +81,8 @@ function Marketplace() {
         !q ||
         p.title.toLowerCase().includes(q) ||
         p.description.toLowerCase().includes(q) ||
-        p.category.toLowerCase().includes(q);
+        p.category.toLowerCase().includes(q) ||
+        displayCategory(p.category).includes(q);
       return matchesCategory && matchesQuery;
     });
   }, [data, query, category]);
@@ -71,28 +95,26 @@ function Marketplace() {
         <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 md:py-24">
           <Badge variant="secondary" className="mb-5 gap-1.5">
             <Sparkles className="size-3.5" />
-            Handmade PDFs, delivered instantly
+            प्रत्येक PDF फक्त {formatPrice(49)}
           </Badge>
           <h1 className="max-w-2xl text-4xl leading-tight md:text-6xl">
-            A small shop for beautifully made digital paper goods.
+            सुंदर बनवलेल्या डिजिटल कागदी वस्तूंचे छोटेसे दुकान.
           </h1>
-          <p className="mt-5 max-w-xl text-base text-muted-foreground md:text-lg">
-            {DESCRIPTION}
-          </p>
+          <p className="mt-5 max-w-xl text-base text-muted-foreground md:text-lg">{DESCRIPTION}</p>
 
           <div className="mt-8 flex max-w-xl items-center gap-2 rounded-2xl border border-border bg-card p-2 shadow-card">
             <Search className="ml-2 size-4 shrink-0 text-muted-foreground" />
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="What are you looking for today?"
-              aria-label="Search the marketplace"
+              placeholder="आज तुम्ही काय शोधत आहात?"
+              aria-label="बाजारात शोधा"
               className="border-0 bg-transparent shadow-none focus-visible:ring-0"
             />
           </div>
 
           <div className="mt-6 flex flex-wrap gap-2">
-            {["All", ...CATEGORIES].map((c) => (
+            {["All", ...categoryNames].map((c) => (
               <button
                 key={c}
                 onClick={() => setCategory(c)}
@@ -102,7 +124,7 @@ function Marketplace() {
                     : "border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground"
                 }`}
               >
-                {c}
+                {c === "All" ? "सर्व" : displayCategory(c)}
               </button>
             ))}
           </div>
@@ -111,17 +133,13 @@ function Marketplace() {
 
       <main className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
         <div className="mb-6 flex items-end justify-between">
-          <h2 className="text-2xl">
-            {category === "All" ? "All products" : category}
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            {products.length} {products.length === 1 ? "item" : "items"}
-          </p>
+          <h2 className="text-2xl">{category === "All" ? "सर्व उत्पादने" : displayCategory(category)}</h2>
+          <p className="text-sm text-muted-foreground">{products.length} वस्तू</p>
         </div>
 
         {error ? (
           <p className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
-            We couldn't load the shop right now. Please refresh and try again.
+            दुकान सध्या लोड होऊ शकले नाही. कृपया पान रिफ्रेश करून पुन्हा प्रयत्न करा.
           </p>
         ) : isLoading ? (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -135,9 +153,9 @@ function Marketplace() {
           </div>
         ) : products.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-border p-12 text-center">
-            <p className="font-display text-lg">Nothing here yet</p>
+            <p className="font-display text-lg">इथे अजून काही नाही</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Try another search, or add products from the Admin Portal.
+              दुसरे काही शोधा, किंवा प्रशासन विभागातून उत्पादने जोडा.
             </p>
           </div>
         ) : (
@@ -146,6 +164,7 @@ function Marketplace() {
               <ProductCard
                 key={product.id}
                 product={product}
+                owned={owned?.has(product.id) ?? false}
                 onOpen={() => setSelected(product)}
               />
             ))}
@@ -155,20 +174,26 @@ function Marketplace() {
 
       <footer className="border-t border-border/70 py-10">
         <div className="mx-auto max-w-6xl px-4 text-sm text-muted-foreground sm:px-6">
-          PaperShop — every purchase is a digital download. No shipping, ever.
+          {BRAND_NAME} — प्रत्येक खरेदी म्हणजे डिजिटल डाउनलोड. शिपिंग नाही, कधीच नाही.
         </div>
       </footer>
 
-      <ProductDialog product={selected} onClose={() => setSelected(null)} />
+      <ProductDialog
+        product={selected}
+        owned={selected ? (owned?.has(selected.id) ?? false) : false}
+        onClose={() => setSelected(null)}
+      />
     </div>
   );
 }
 
 function ProductCard({
   product,
+  owned,
   onOpen,
 }: {
   product: ProductWithPreview;
+  owned: boolean;
   onOpen: () => void;
 }) {
   return (
@@ -178,23 +203,23 @@ function ProductCard({
           {product.preview_url ? (
             <img
               src={product.preview_url}
-              alt={`Cover mockup for ${product.title}`}
+              alt={`${product.title} चे मुखपृष्ठ`}
               loading="lazy"
               className="size-full object-cover"
             />
           ) : (
             <div className="flex size-full items-center justify-center text-sm text-muted-foreground">
-              No cover image
+              मुखपृष्ठ चित्र नाही
             </div>
           )}
           <Badge className="absolute left-3 top-3 gap-1 bg-primary text-primary-foreground">
             <Download className="size-3" />
-            Instant Download
+            {owned ? "खरेदी केलेले" : "त्वरित डाउनलोड"}
           </Badge>
         </div>
         <div className="space-y-1.5 p-5">
           <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-            {product.category}
+            {displayCategory(product.category)}
           </p>
           <h3 className="text-lg leading-snug">{product.title}</h3>
           <p className="line-clamp-2 text-sm text-muted-foreground">{product.description}</p>
@@ -207,71 +232,154 @@ function ProductCard({
 
 function ProductDialog({
   product,
+  owned,
   onClose,
 }: {
   product: ProductWithPreview | null;
+  owned: boolean;
   onClose: () => void;
 }) {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [busy, setBusy] = useState(false);
+  const [askName, setAskName] = useState(false);
 
-  async function handleBuy() {
+  async function handleBuyClick() {
     if (!product) return;
     if (!product.pdf_url) {
-      toast.error("This product's file isn't attached yet.");
+      toast.error("या उत्पादनाची फाईल अजून जोडलेली नाही.");
       return;
     }
+    const { data } = await supabase.auth.getUser();
+    if (!data.user) {
+      toast.info("खरेदी करण्यासाठी आधी लॉगिन करा.");
+      navigate({ to: "/auth", search: { redirect: "/" } });
+      return;
+    }
+    setAskName(true);
+  }
+
+  async function deliver(productId: string, name: string) {
+    await downloadPersonalizedPdf(productId, name);
+    queryClient.invalidateQueries({ queryKey: ["my-purchased-ids"] });
+    queryClient.invalidateQueries({ queryKey: ["my-purchases"] });
+    toast.success("तुमची PDF तयार आहे — ती 'माझे स्टोअर' मध्येही सापडेल.");
+    setAskName(false);
+    onClose();
+  }
+
+  async function handleNameConfirmed(name: string) {
+    if (!product) return;
     setBusy(true);
     try {
-      const url = await getDownloadUrl(product.pdf_url);
-      window.open(url, "_blank", "noopener,noreferrer");
-      toast.success("Your download is ready.");
-    } catch {
-      toast.error("We couldn't prepare that download. Please try again.");
-    } finally {
+      const order = await createRazorpayOrder({ data: { productId: product.id } });
+      if (order.alreadyOwned) {
+        await deliver(product.id, name);
+        return;
+      }
+
+      await loadRazorpay();
+      if (!window.Razorpay) throw new Error("पेमेंट विंडो उघडता आली नाही.");
+      const { data: userData } = await supabase.auth.getUser();
+
+      const productId = product.id;
+      const rzp = new window.Razorpay({
+        key: order.keyId,
+        amount: order.amount,
+        currency: order.currency,
+        name: BRAND_NAME,
+        description: order.productTitle,
+        order_id: order.orderId,
+        prefill: { email: userData.user?.email },
+        handler: (response: RazorpaySuccess) => {
+          void (async () => {
+            try {
+              await verifyRazorpayPayment({
+                data: {
+                  productId,
+                  orderId: response.razorpay_order_id,
+                  paymentId: response.razorpay_payment_id,
+                  signature: response.razorpay_signature,
+                },
+              });
+              await deliver(productId, name);
+            } catch (err) {
+              toast.error(err instanceof Error ? err.message : "पेमेंट पडताळणी अयशस्वी.");
+            } finally {
+              setBusy(false);
+            }
+          })();
+        },
+        modal: {
+          ondismiss: () => {
+            setBusy(false);
+            toast.info("पेमेंट रद्द केले.");
+          },
+        },
+      });
+      rzp.open();
+    } catch (err) {
       setBusy(false);
+      toast.error(err instanceof Error ? err.message : "पेमेंट सुरू करता आले नाही.");
     }
   }
 
   return (
-    <Dialog open={!!product} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-3xl overflow-hidden p-0">
-        {product ? (
-          <div className="grid md:grid-cols-2">
-            <div className="aspect-4/3 bg-secondary md:aspect-auto md:h-full">
-              {product.preview_url ? (
-                <img
-                  src={product.preview_url}
-                  alt={`Cover mockup for ${product.title}`}
-                  className="size-full object-cover"
-                />
-              ) : null}
-            </div>
-            <div className="p-6">
-              <DialogHeader className="space-y-2 text-left">
-                <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-                  {product.category}
+    <>
+      <Dialog open={!!product && !askName} onOpenChange={(open) => !open && onClose()}>
+        <DialogContent className="max-w-3xl overflow-hidden p-0">
+          {product ? (
+            <div className="grid md:grid-cols-2">
+              <div className="aspect-4/3 bg-secondary md:aspect-auto md:h-full">
+                {product.preview_url ? (
+                  <img
+                    src={product.preview_url}
+                    alt={`${product.title} चे मुखपृष्ठ`}
+                    className="size-full object-cover"
+                  />
+                ) : null}
+              </div>
+              <div className="p-6">
+                <DialogHeader className="space-y-2 text-left">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-primary">
+                    {displayCategory(product.category)}
+                  </p>
+                  <DialogTitle className="font-display text-2xl">{product.title}</DialogTitle>
+                  <DialogDescription className="text-sm leading-relaxed">
+                    {product.description}
+                  </DialogDescription>
+                </DialogHeader>
+
+                <p className="mt-5 font-display text-3xl">{formatPrice(product.price)}</p>
+
+                <Button className="mt-5 w-full" size="lg" onClick={handleBuyClick} disabled={busy}>
+                  {busy ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
+                  {!product.pdf_url
+                    ? "फाईल लवकरच येत आहे"
+                    : owned
+                      ? "पुन्हा डाउनलोड करा (मोफत)"
+                      : "पैसे भरा आणि डाउनलोड करा"}
+                </Button>
+
+                <p className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <ShieldCheck className="size-3.5" />
+                  Razorpay द्वारे सुरक्षित पेमेंट · PDF वर तुमचे नाव छापले जाते
                 </p>
-                <DialogTitle className="font-display text-2xl">{product.title}</DialogTitle>
-                <DialogDescription className="text-sm leading-relaxed">
-                  {product.description}
-                </DialogDescription>
-              </DialogHeader>
-
-              <p className="mt-5 font-display text-3xl">{formatPrice(product.price)}</p>
-
-              <Button className="mt-5 w-full" size="lg" onClick={handleBuy} disabled={busy}>
-                <Download className="size-4" />
-                {product.pdf_url ? "Buy now & download" : "File coming soon"}
-              </Button>
-
-              <p className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
-                <ShieldCheck className="size-3.5" />
-                Secure, time-limited download link
-              </p>
+              </div>
             </div>
-          </div>
-        ) : null}
-      </DialogContent>
-    </Dialog>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <NameDialog
+        open={askName}
+        busy={busy}
+        confirmLabel={owned ? "डाउनलोड करा" : "पैसे भरा आणि डाउनलोड करा"}
+        onConfirm={handleNameConfirmed}
+        onClose={() => {
+          setAskName(false);
+        }}
+      />
+    </>
   );
 }
