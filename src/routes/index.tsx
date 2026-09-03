@@ -290,7 +290,7 @@ function ProductDialog({
         name: BRAND_NAME,
         description: order.productTitle,
         order_id: order.orderId,
-        prefill: { email: userData.user?.email },
+        prefill: userData.user?.email ? { email: userData.user.email } : {},
         handler: (response: RazorpaySuccess) => {
           void (async () => {
             try {
