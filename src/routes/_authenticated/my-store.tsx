@@ -4,15 +4,18 @@ import { Download, Loader2, ShoppingBag } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { NameDialog } from "@/components/name-dialog";
 import { SiteHeader } from "@/components/site-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatPrice, getDownloadUrl } from "@/lib/products";
-import { fetchMyPurchases } from "@/lib/purchases";
+import { BRAND_NAME } from "@/lib/brand";
+import { downloadPersonalizedPdf } from "@/lib/download";
+import { displayCategory, formatPrice } from "@/lib/products";
+import { fetchMyPurchases, type Purchase } from "@/lib/purchases";
 
-const TITLE = "My Store — Your PaperShop library";
-const DESCRIPTION = "Every product you've bought, ready to download whenever you want.";
+const TITLE = `माझे स्टोअर — ${BRAND_NAME} लायब्ररी`;
+const DESCRIPTION = "तुम्ही खरेदी केलेली प्रत्येक PDF, कधीही मोफत डाउनलोड करण्यासाठी तयार.";
 
 export const Route = createFileRoute("/_authenticated/my-store")({
   head: () => ({
@@ -21,6 +24,8 @@ export const Route = createFileRoute("/_authenticated/my-store")({
       { name: "description", content: DESCRIPTION },
       { property: "og:title", content: TITLE },
       { property: "og:description", content: DESCRIPTION },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { name: "robots", content: "noindex" },
     ],
   }),
@@ -28,26 +33,33 @@ export const Route = createFileRoute("/_authenticated/my-store")({
 });
 
 function MyStore() {
-  const [downloading, setDownloading] = useState<string | null>(null);
+  const [target, setTarget] = useState<Purchase | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const { data: purchases, isLoading, error } = useQuery({
     queryKey: ["my-purchases"],
     queryFn: fetchMyPurchases,
   });
 
-  async function handleDownload(purchaseId: string, pdfPath: string | null) {
-    if (!pdfPath) {
-      toast.error("This product's file isn't attached yet.");
+  function startDownload(purchase: Purchase) {
+    if (!purchase.product?.pdf_url) {
+      toast.error("या उत्पादनाची फाईल अजून जोडलेली नाही.");
       return;
     }
-    setDownloading(purchaseId);
+    setTarget(purchase);
+  }
+
+  async function handleName(name: string) {
+    if (!target) return;
+    setBusy(true);
     try {
-      const url = await getDownloadUrl(pdfPath);
-      window.open(url, "_blank", "noopener,noreferrer");
-    } catch {
-      toast.error("We couldn't prepare that download. Please try again.");
+      await downloadPersonalizedPdf(target.product_id, name);
+      toast.success("तुमची PDF डाउनलोड होत आहे.");
+      setTarget(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "डाउनलोड तयार करता आले नाही.");
     } finally {
-      setDownloading(null);
+      setBusy(false);
     }
   }
 
@@ -59,34 +71,32 @@ function MyStore() {
         <div className="mb-8">
           <Badge variant="secondary" className="gap-1.5">
             <ShoppingBag className="size-3.5" />
-            My Store
+            माझे स्टोअर
           </Badge>
-          <h1 className="mt-3 text-3xl md:text-4xl">Your library</h1>
+          <h1 className="mt-3 text-3xl md:text-4xl">तुमची लायब्ररी</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Products you've bought live here — download them again anytime, free.
+            तुम्ही खरेदी केलेली उत्पादने इथे आहेत — ती कधीही, मोफत, पुन्हा डाउनलोड करा.
           </p>
         </div>
 
         {error ? (
           <p className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
-            We couldn't load your library right now. Please refresh and try again.
+            तुमची लायब्ररी सध्या लोड होऊ शकली नाही. कृपया पान रिफ्रेश करा.
           </p>
         ) : isLoading ? (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="space-y-3">
-                <Skeleton className="h-24 w-full rounded-2xl" />
-              </div>
+              <Skeleton key={i} className="h-24 w-full rounded-2xl" />
             ))}
           </div>
         ) : (purchases?.length ?? 0) === 0 ? (
           <div className="rounded-2xl border border-dashed border-border p-12 text-center">
-            <p className="font-display text-lg">Nothing in your store yet</p>
+            <p className="font-display text-lg">तुमच्या स्टोअरमध्ये अजून काही नाही</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Buy something from the marketplace and it will appear here.
+              बाजारातून काहीतरी खरेदी करा आणि ते इथे दिसेल.
             </p>
             <Button asChild className="mt-5">
-              <Link to="/">Browse the marketplace</Link>
+              <Link to="/">बाजार पाहा</Link>
             </Button>
           </div>
         ) : (
@@ -98,12 +108,12 @@ function MyStore() {
               >
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-                    {purchase.product?.category ?? "Product"}
+                    {displayCategory(purchase.product?.category ?? "उत्पादन")}
                   </p>
-                  <h2 className="truncate text-lg">{purchase.product?.title ?? "Product"}</h2>
+                  <h2 className="truncate text-lg">{purchase.product?.title ?? "उत्पादन"}</h2>
                   <p className="text-sm text-muted-foreground">
-                    Bought for {formatPrice(purchase.amount)} on{" "}
-                    {new Date(purchase.created_at).toLocaleDateString("en-IN", {
+                    {formatPrice(purchase.amount)} मध्ये खरेदी,{" "}
+                    {new Date(purchase.created_at).toLocaleDateString("mr-IN", {
                       day: "numeric",
                       month: "short",
                       year: "numeric",
@@ -111,21 +121,29 @@ function MyStore() {
                   </p>
                 </div>
                 <Button
-                  onClick={() => handleDownload(purchase.id, purchase.product?.pdf_url ?? null)}
-                  disabled={downloading === purchase.id}
+                  onClick={() => startDownload(purchase)}
+                  disabled={busy && target?.id === purchase.id}
                 >
-                  {downloading === purchase.id ? (
+                  {busy && target?.id === purchase.id ? (
                     <Loader2 className="size-4 animate-spin" />
                   ) : (
                     <Download className="size-4" />
                   )}
-                  Download
+                  डाउनलोड करा
                 </Button>
               </article>
             ))}
           </div>
         )}
       </main>
+
+      <NameDialog
+        open={!!target}
+        busy={busy}
+        confirmLabel="डाउनलोड करा"
+        onConfirm={handleName}
+        onClose={() => !busy && setTarget(null)}
+      />
     </div>
   );
 }
