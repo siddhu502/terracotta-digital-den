@@ -60,7 +60,7 @@ type FormState = {
   description: string;
 };
 
-const EMPTY: FormState = { title: "", category: "", price: "", description: "" };
+const EMPTY: FormState = { title: "", category: "", price: "49", description: "" };
 
 function AdminPage() {
   const queryClient = useQueryClient();
@@ -256,7 +256,7 @@ function AdminPage() {
                         className="pl-7"
                         value={form.price}
                         onChange={(e) => setForm({ ...form, price: e.target.value })}
-                        placeholder="499"
+                        placeholder="49"
                       />
                     </div>
                   </div>
