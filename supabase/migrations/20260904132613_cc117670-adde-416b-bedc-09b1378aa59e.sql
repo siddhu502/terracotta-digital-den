@@ -1,0 +1,1 @@
+ALTER TABLE public.purchases ADD COLUMN IF NOT EXISTS buyer_name text;

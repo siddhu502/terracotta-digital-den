@@ -102,9 +102,7 @@ function Marketplace() {
             <Sparkles className="size-3.5" />
             प्रत्येक PDF फक्त {formatPrice(49)}
           </Badge>
-          <h1 className="max-w-2xl text-4xl leading-tight md:text-6xl">
-            सुंदर बनवलेल्या डिजिटल कागदी वस्तूंचे छोटेसे दुकान.
-          </h1>
+          <h1 className="max-w-2xl text-4xl leading-tight md:text-6xl">{BRAND_NAME}</h1>
           <p className="mt-5 max-w-xl text-base text-muted-foreground md:text-lg">{DESCRIPTION}</p>
 
           <div className="mt-8 flex max-w-xl items-center gap-2 rounded-2xl border border-border bg-card p-2 shadow-card">
@@ -112,8 +110,9 @@ function Marketplace() {
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="आज तुम्ही काय शोधत आहात?"
+              placeholder="शोधा…"
               aria-label="बाजारात शोधा"
+              autoComplete="off"
               className="border-0 bg-transparent shadow-none focus-visible:ring-0"
             />
           </div>

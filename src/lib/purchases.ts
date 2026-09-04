@@ -7,13 +7,14 @@ export type Purchase = {
   product_id: string;
   amount: number;
   created_at: string;
+  buyer_name: string | null;
   product: Product | null;
 };
 
 export async function fetchMyPurchases(): Promise<Purchase[]> {
   const { data, error } = await supabase
     .from("purchases")
-    .select("id, product_id, amount, created_at, product:products(*)")
+    .select("id, product_id, amount, created_at, buyer_name, product:products(*)")
     .order("created_at", { ascending: false });
   if (error) throw error;
   return (data ?? []) as unknown as Purchase[];

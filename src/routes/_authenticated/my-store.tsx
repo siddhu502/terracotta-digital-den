@@ -1,21 +1,30 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Download, Loader2, ShoppingBag } from "lucide-react";
-import { useState } from "react";
+import { Download, Eye, Loader2, ShoppingBag } from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { NameDialog } from "@/components/name-dialog";
 import { SiteHeader } from "@/components/site-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BRAND_NAME } from "@/lib/brand";
-import { downloadPersonalizedPdf } from "@/lib/download";
+import { buildPersonalizedPdf, downloadPersonalizedPdf } from "@/lib/download";
 import { displayCategory, formatPrice } from "@/lib/products";
 import { fetchMyPurchases, type Purchase } from "@/lib/purchases";
 
 const TITLE = `माझे स्टोअर — ${BRAND_NAME} लायब्ररी`;
 const DESCRIPTION = "तुम्ही खरेदी केलेली प्रत्येक PDF, कधीही मोफत डाउनलोड करण्यासाठी तयार.";
+
+type Action = "download" | "open";
 
 export const Route = createFileRoute("/_authenticated/my-store")({
   head: () => ({
@@ -33,35 +42,64 @@ export const Route = createFileRoute("/_authenticated/my-store")({
 });
 
 function MyStore() {
+  const queryClient = useQueryClient();
   const [target, setTarget] = useState<Purchase | null>(null);
+  const [action, setAction] = useState<Action>("download");
+  const [askName, setAskName] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [preview, setPreview] = useState<{ url: string; title: string } | null>(null);
 
   const { data: purchases, isLoading, error } = useQuery({
     queryKey: ["my-purchases"],
     queryFn: fetchMyPurchases,
   });
 
-  function startDownload(purchase: Purchase) {
+  useEffect(() => {
+    return () => {
+      if (preview) URL.revokeObjectURL(preview.url);
+    };
+  }, [preview]);
+
+  async function run(purchase: Purchase, kind: Action, name?: string) {
+    setBusy(true);
+    try {
+      if (kind === "download") {
+        await downloadPersonalizedPdf(purchase.product_id, name);
+        toast.success("तुमची PDF डाउनलोड होत आहे.");
+      } else {
+        const { blob } = await buildPersonalizedPdf(purchase.product_id, name);
+        setPreview({ url: URL.createObjectURL(blob), title: purchase.product?.title ?? "PDF" });
+      }
+      setAskName(false);
+      setTarget(null);
+      if (!purchase.buyer_name) queryClient.invalidateQueries({ queryKey: ["my-purchases"] });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "";
+      if (message.includes("NAME_REQUIRED")) {
+        setAskName(true);
+      } else {
+        toast.error(message || "PDF तयार करता आली नाही.");
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function start(purchase: Purchase, kind: Action) {
     if (!purchase.product?.pdf_url) {
       toast.error("या उत्पादनाची फाईल अजून जोडलेली नाही.");
       return;
     }
     setTarget(purchase);
-  }
-
-  async function handleName(name: string) {
-    if (!target) return;
-    setBusy(true);
-    try {
-      await downloadPersonalizedPdf(target.product_id, name);
-      toast.success("तुमची PDF डाउनलोड होत आहे.");
-      setTarget(null);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "डाउनलोड तयार करता आले नाही.");
-    } finally {
-      setBusy(false);
+    setAction(kind);
+    if (purchase.buyer_name) {
+      void run(purchase, kind);
+    } else {
+      setAskName(true);
     }
   }
+
+  const isBusy = (p: Purchase) => busy && target?.id === p.id;
 
   return (
     <div className="min-h-screen">
@@ -118,19 +156,31 @@ function MyStore() {
                       month: "short",
                       year: "numeric",
                     })}
+                    {purchase.buyer_name ? ` · नाव: ${purchase.buyer_name}` : ""}
                   </p>
                 </div>
-                <Button
-                  onClick={() => startDownload(purchase)}
-                  disabled={busy && target?.id === purchase.id}
-                >
-                  {busy && target?.id === purchase.id ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <Download className="size-4" />
-                  )}
-                  डाउनलोड करा
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => start(purchase, "open")}
+                    disabled={isBusy(purchase)}
+                  >
+                    {isBusy(purchase) && action === "open" ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <Eye className="size-4" />
+                    )}
+                    उघडा
+                  </Button>
+                  <Button onClick={() => start(purchase, "download")} disabled={isBusy(purchase)}>
+                    {isBusy(purchase) && action === "download" ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <Download className="size-4" />
+                    )}
+                    डाउनलोड करा
+                  </Button>
+                </div>
               </article>
             ))}
           </div>
@@ -138,12 +188,32 @@ function MyStore() {
       </main>
 
       <NameDialog
-        open={!!target}
+        open={askName && !!target}
         busy={busy}
-        confirmLabel="डाउनलोड करा"
-        onConfirm={handleName}
-        onClose={() => !busy && setTarget(null)}
+        confirmLabel={action === "open" ? "उघडा" : "डाउनलोड करा"}
+        onConfirm={(name) => target && run(target, action, name)}
+        onClose={() => {
+          if (busy) return;
+          setAskName(false);
+          setTarget(null);
+        }}
       />
+
+      <Dialog open={!!preview} onOpenChange={(o) => !o && setPreview(null)}>
+        <DialogContent className="h-[90vh] max-w-5xl p-4 sm:p-6">
+          <DialogHeader className="text-left">
+            <DialogTitle className="font-display text-xl">{preview?.title}</DialogTitle>
+            <DialogDescription>तुमच्या नावाच्या वॉटरमार्कसह PDF</DialogDescription>
+          </DialogHeader>
+          {preview ? (
+            <iframe
+              src={preview.url}
+              title={preview.title}
+              className="h-full w-full flex-1 rounded-lg border border-border bg-muted"
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
