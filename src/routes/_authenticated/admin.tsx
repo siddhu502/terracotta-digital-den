@@ -44,7 +44,7 @@ const DESCRIPTION =
 export const Route = createFileRoute("/_authenticated/admin")({
   beforeLoad: async () => {
     const { data } = await supabase.auth.getUser();
-    if (data.user?.email?.toLowerCase() !== "goldsmith.sir@gmai.com") {
+    if (data.user?.email?.toLowerCase() !== "goldsmith.sir@gmail.com") {
       throw redirect({ to: "/" });
     }
     const { error } = await supabase.from("user_roles").insert({
