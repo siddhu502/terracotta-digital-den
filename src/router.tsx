@@ -17,12 +17,12 @@ export const getRouter = () => {
   if (typeof window !== "undefined") {
     window.addEventListener("vite:preloadError", (event) => {
       const key = "smart-ness:chunk-reload";
-      if (sessionStorage.getItem(key)) return;
-      sessionStorage.setItem(key, "1");
+      const last = Number(sessionStorage.getItem(key) ?? 0);
+      if (Date.now() - last < 10_000) return; // avoid reload loops
+      sessionStorage.setItem(key, String(Date.now()));
       event.preventDefault();
       window.location.reload();
     });
-    window.addEventListener("load", () => sessionStorage.removeItem("smart-ness:chunk-reload"));
   }
 
   return router;
