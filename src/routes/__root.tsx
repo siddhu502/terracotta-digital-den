@@ -79,17 +79,17 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "PaperShop — Digital PDF Marketplace" },
+      { title: "Smart Ness — डिजिटल PDF मार्केटप्लेस" },
       {
         name: "description",
         content:
-          "Instant-download planners, resumes, art prints, guides and templates from independent makers.",
+          "Smart Ness वर शैक्षणिक नोट्स आणि डिजिटल PDF खरेदी करा व त्वरित डाउनलोड करा.",
       },
-      { property: "og:title", content: "PaperShop — Digital PDF Marketplace" },
+      { property: "og:title", content: "Smart Ness — डिजिटल PDF मार्केटप्लेस" },
       {
         property: "og:description",
         content:
-          "Instant-download planners, resumes, art prints, guides and templates from independent makers.",
+          "Smart Ness वर शैक्षणिक नोट्स आणि डिजिटल PDF खरेदी करा व त्वरित डाउनलोड करा.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

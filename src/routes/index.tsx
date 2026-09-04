@@ -160,7 +160,7 @@ function Marketplace() {
           <div className="rounded-2xl border border-dashed border-border p-12 text-center">
             <p className="font-display text-lg">इथे अजून काही नाही</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              दुसरे काही शोधा, किंवा प्रशासन विभागातून उत्पादने जोडा.
+              दुसरे काही शोधा, किंवा नवीन उत्पादने जोडा.
             </p>
           </div>
         ) : (
