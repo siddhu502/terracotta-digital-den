@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { Download, Loader2, Search, ShieldCheck, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -21,7 +22,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { BRAND_NAME } from "@/lib/brand";
 import { fetchCategories } from "@/lib/categories";
 import { downloadPersonalizedPdf } from "@/lib/download";
-import { createRazorpayOrder, verifyRazorpayPayment } from "@/lib/payments.functions";
+import {
+  claimFreeProduct,
+  createRazorpayOrder,
+  verifyRazorpayPayment,
+} from "@/lib/payments.functions";
 import {
   displayCategory,
   fetchProducts,
@@ -241,6 +246,9 @@ function ProductDialog({
 }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const createOrder = useServerFn(createRazorpayOrder);
+  const verifyPayment = useServerFn(verifyRazorpayPayment);
+  const claimFree = useServerFn(claimFreeProduct);
   const [busy, setBusy] = useState(false);
   const [askName, setAskName] = useState(false);
 
@@ -260,19 +268,31 @@ function ProductDialog({
   }
 
   async function deliver(productId: string, name: string) {
-    await downloadPersonalizedPdf(productId, name);
-    queryClient.invalidateQueries({ queryKey: ["my-purchased-ids"] });
-    queryClient.invalidateQueries({ queryKey: ["my-purchases"] });
-    toast.success("तुमची PDF तयार आहे — ती 'माझे स्टोअर' मध्येही सापडेल.");
-    setAskName(false);
-    onClose();
+    try {
+      await downloadPersonalizedPdf(productId, name);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["my-purchased-ids"] }),
+        queryClient.invalidateQueries({ queryKey: ["my-purchases"] }),
+      ]);
+      toast.success("तुमची PDF तयार आहे — ती 'माझे स्टोअर' मध्येही सापडेल.");
+      setAskName(false);
+      onClose();
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function handleNameConfirmed(name: string) {
     if (!product) return;
     setBusy(true);
     try {
-      const order = await createRazorpayOrder({ data: { productId: product.id } });
+      if (product.price === 0 && !owned) {
+        await claimFree({ data: { productId: product.id } });
+        await deliver(product.id, name);
+        return;
+      }
+
+      const order = await createOrder({ data: { productId: product.id } });
       if (order.alreadyOwned) {
         await deliver(product.id, name);
         return;
@@ -294,7 +314,7 @@ function ProductDialog({
         handler: (response: RazorpaySuccess) => {
           void (async () => {
             try {
-              await verifyRazorpayPayment({
+              await verifyPayment({
                 data: {
                   productId,
                   orderId: response.razorpay_order_id,
@@ -358,12 +378,16 @@ function ProductDialog({
                     ? "फाईल लवकरच येत आहे"
                     : owned
                       ? "पुन्हा डाउनलोड करा (मोफत)"
-                      : "पैसे भरा आणि डाउनलोड करा"}
+                      : product.price === 0
+                        ? "मोफत डाउनलोड करा"
+                        : "पैसे भरा आणि डाउनलोड करा"}
                 </Button>
 
                 <p className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
                   <ShieldCheck className="size-3.5" />
-                  Razorpay द्वारे सुरक्षित पेमेंट · PDF वर तुमचे नाव छापले जाते
+                  {product.price === 0
+                    ? "मोफत PDF · PDF वर तुमचे नाव छापले जाते"
+                    : "Razorpay द्वारे सुरक्षित पेमेंट · PDF वर तुमचे नाव छापले जाते"}
                 </p>
               </div>
             </div>
@@ -374,7 +398,9 @@ function ProductDialog({
       <NameDialog
         open={askName}
         busy={busy}
-        confirmLabel={owned ? "डाउनलोड करा" : "पैसे भरा आणि डाउनलोड करा"}
+        confirmLabel={
+          owned ? "डाउनलोड करा" : product?.price === 0 ? "मोफत डाउनलोड करा" : "पैसे भरा आणि डाउनलोड करा"
+        }
         onConfirm={handleNameConfirmed}
         onClose={() => {
           setAskName(false);

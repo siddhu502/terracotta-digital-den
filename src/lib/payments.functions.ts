@@ -60,6 +60,29 @@ export const createRazorpayOrder = createServerFn({ method: "POST" })
     };
   });
 
+export const claimFreeProduct = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({ productId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { data: product, error: productError } = await context.supabase
+      .from("products")
+      .select("id, price, pdf_url")
+      .eq("id", data.productId)
+      .single();
+    if (productError || !product) throw new Error("उत्पादन सापडले नाही.");
+    if (!product.pdf_url) throw new Error("या उत्पादनाची फाईल अजून जोडलेली नाही.");
+    if (Number(product.price) !== 0) throw new Error("हे उत्पादन मोफत नाही.");
+
+    const { error } = await context.supabase.from("purchases").insert({
+      user_id: context.userId,
+      product_id: product.id,
+      amount: 0,
+      currency: "INR",
+    });
+    if (error && error.code !== "23505") throw new Error("मोफत PDF तुमच्या स्टोअरमध्ये जोडता आली नाही.");
+    return { ok: true as const };
+  });
+
 export const verifyRazorpayPayment = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) =>

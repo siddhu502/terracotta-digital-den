@@ -30,7 +30,11 @@ export function loadRazorpay(): Promise<void> {
     const script = document.createElement("script");
     script.src = "https://checkout.razorpay.com/v1/checkout.js";
     script.onload = () => resolve();
-    script.onerror = () => reject(new Error("पेमेंट विंडो उघडता आली नाही."));
+    script.onerror = () => {
+      script.remove();
+      loader = null;
+      reject(new Error("पेमेंट सेवा लोड झाली नाही. इंटरनेट तपासून पुन्हा प्रयत्न करा."));
+    };
     document.body.appendChild(script);
   });
   return loader;

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { FileText, ImageIcon, Loader2, Pencil, Plus, Tags, Trash2, X } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
@@ -41,12 +41,25 @@ const DESCRIPTION =
   "Upload cover mockups and PDF files, set pricing, and manage your digital product inventory on PaperShop.";
 
 export const Route = createFileRoute("/_authenticated/admin")({
+  beforeLoad: async () => {
+    const { data } = await supabase.auth.getUser();
+    if (data.user?.email?.toLowerCase() !== "goldsmith.sir@gmai.com") {
+      throw redirect({ to: "/" });
+    }
+    const { error } = await supabase.from("user_roles").insert({
+      user_id: data.user.id,
+      role: "admin",
+    });
+    if (error && error.code !== "23505") throw redirect({ to: "/" });
+  },
   head: () => ({
     meta: [
       { title: TITLE },
       { name: "description", content: DESCRIPTION },
       { property: "og:title", content: TITLE },
       { property: "og:description", content: DESCRIPTION },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { name: "robots", content: "noindex" },
     ],
   }),
@@ -70,6 +83,7 @@ function AdminPage() {
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [newCategory, setNewCategory] = useState("");
+  const [pricing, setPricing] = useState<"free" | "paid">("paid");
   const imageRef = useRef<HTMLInputElement>(null);
   const pdfRef = useRef<HTMLInputElement>(null);
 
@@ -89,6 +103,7 @@ function AdminPage() {
     setImageFile(null);
     setPdfFile(null);
     setImagePreview(null);
+    setPricing("paid");
     if (imageRef.current) imageRef.current.value = "";
     if (pdfRef.current) pdfRef.current.value = "";
   }
@@ -104,12 +119,13 @@ function AdminPage() {
     setImageFile(null);
     setPdfFile(null);
     setImagePreview(product.preview_url);
+    setPricing(product.price === 0 ? "free" : "paid");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   const save = useMutation({
     mutationFn: async () => {
-      const price = Number(form.price);
+      const price = pricing === "free" ? 0 : Number(form.price);
       if (!form.title.trim()) throw new Error("Please add a product title.");
       if (!form.category) throw new Error("Please pick a category.");
       if (!Number.isFinite(price) || price < 0) throw new Error("Please enter a valid price.");
@@ -222,6 +238,26 @@ function AdminPage() {
                   />
                 </div>
 
+                <div className="space-y-2">
+                  <Label>किंमत प्रकार</Label>
+                  <div className="grid grid-cols-2 gap-2 rounded-lg border border-border p-1">
+                    <Button
+                      type="button"
+                      variant={pricing === "free" ? "default" : "ghost"}
+                      onClick={() => setPricing("free")}
+                    >
+                      मोफत
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={pricing === "paid" ? "default" : "ghost"}
+                      onClick={() => setPricing("paid")}
+                    >
+                      सशुल्क
+                    </Button>
+                  </div>
+                </div>
+
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="category">Category</Label>
@@ -257,6 +293,7 @@ function AdminPage() {
                         value={form.price}
                         onChange={(e) => setForm({ ...form, price: e.target.value })}
                         placeholder="49"
+                        disabled={pricing === "free"}
                       />
                     </div>
                   </div>
