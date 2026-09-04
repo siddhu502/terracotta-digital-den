@@ -25,6 +25,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { supabase } from "@/integrations/supabase/client";
 import { createCategory, deleteCategory, fetchCategories } from "@/lib/categories";
 import {
   createProduct,
@@ -36,9 +37,9 @@ import {
   type ProductWithPreview,
 } from "@/lib/products";
 
-const TITLE = "Creator Dashboard — PaperShop Admin Portal";
+const TITLE = "उत्पादन व्यवस्थापन — Smart Ness";
 const DESCRIPTION =
-  "Upload cover mockups and PDF files, set pricing, and manage your digital product inventory on PaperShop.";
+  "Smart Ness वरील PDF, श्रेणी, फाईल आणि किंमत व्यवस्थापित करा.";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   beforeLoad: async () => {
