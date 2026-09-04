@@ -41,6 +41,9 @@ export const personalizePdf = createServerFn({ method: "POST" })
       .download(product.pdf_url);
     if (error || !file) throw new Error("फाईल मिळाली नाही.");
 
+    // Fontkit's bundled async glyph shaping still expects this Babel runtime.
+    // Load it before Fontkit so Marathi/Devanagari names work in server builds.
+    await import("regenerator-runtime/runtime.js");
     const [{ PDFDocument, StandardFonts, rgb, degrees }, fontkitModule] = await Promise.all([
       import("pdf-lib"),
       import("@pdf-lib/fontkit"),

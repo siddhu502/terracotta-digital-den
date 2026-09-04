@@ -7,8 +7,8 @@ export const createRazorpayOrder = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => z.object({ productId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const keyId = process.env["RAZORPAY_KEY_ID"];
-    const keySecret = process.env["RAZORPAY_KEY_SECRET"];
+    const keyId = process.env["RAZORPAY_KEY_ID"]?.trim();
+    const keySecret = process.env["RAZORPAY_KEY_SECRET"]?.trim();
     if (!keyId || !keySecret) throw new Error("Payment gateway is not configured.");
 
     const { data: product, error } = await context.supabase
@@ -46,7 +46,11 @@ export const createRazorpayOrder = createServerFn({ method: "POST" })
     });
     if (!res.ok) {
       console.error("Razorpay order failed:", res.status, await res.text());
-      throw new Error("Couldn't start the payment. Please try again.");
+      throw new Error(
+        res.status === 401
+          ? "Razorpay key ID किंवा secret चुकीचा आहे. कृपया दोन्ही matching keys पुन्हा सेव्ह करा."
+          : "पेमेंट सुरू करता आले नाही. कृपया पुन्हा प्रयत्न करा.",
+      );
     }
     const order = (await res.json()) as { id: string };
 
@@ -96,8 +100,8 @@ export const verifyRazorpayPayment = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const keyId = process.env["RAZORPAY_KEY_ID"];
-    const keySecret = process.env["RAZORPAY_KEY_SECRET"];
+    const keyId = process.env["RAZORPAY_KEY_ID"]?.trim();
+    const keySecret = process.env["RAZORPAY_KEY_SECRET"]?.trim();
     if (!keyId || !keySecret) throw new Error("Payment gateway is not configured.");
 
     const { createHmac, timingSafeEqual } = await import("crypto");
