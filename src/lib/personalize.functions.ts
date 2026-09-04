@@ -19,14 +19,15 @@ export const personalizePdf = createServerFn({ method: "POST" })
     z
       .object({
         productId: z.string().uuid(),
-        name: z.string().trim().min(1).max(60),
+        // Optional: when omitted, the name saved on the first download is reused.
+        name: z.string().trim().min(1).max(60).optional(),
       })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
     const { data: purchase } = await context.supabase
       .from("purchases")
-      .select("id, product:products(title, pdf_url)")
+      .select("id, buyer_name, product:products(title, pdf_url)")
       .eq("user_id", context.userId)
       .eq("product_id", data.productId)
       .maybeSingle();
@@ -35,7 +36,16 @@ export const personalizePdf = createServerFn({ method: "POST" })
     if (!purchase || !product) throw new Error("तुम्ही हे उत्पादन अजून खरेदी केलेले नाही.");
     if (!product.pdf_url) throw new Error("या उत्पादनाची फाईल अजून जोडलेली नाही.");
 
+    const savedName = (purchase.buyer_name as string | null)?.trim() || null;
+    const name = savedName ?? data.name?.trim() ?? "";
+    if (!name) throw new Error("NAME_REQUIRED");
+
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    if (!savedName) {
+      // Lock the name in on the first download so later downloads reuse it.
+      await supabaseAdmin.from("purchases").update({ buyer_name: name }).eq("id", purchase.id);
+    }
+
     const { data: file, error } = await supabaseAdmin.storage
       .from("product-files")
       .download(product.pdf_url);
@@ -53,7 +63,6 @@ export const personalizePdf = createServerFn({ method: "POST" })
     const pdf = await PDFDocument.load(await file.arrayBuffer(), { ignoreEncryption: true });
     pdf.registerFontkit(fontkit as Parameters<typeof pdf.registerFontkit>[0]);
 
-    const name = data.name.trim();
     let font = await pdf.embedFont(StandardFonts.HelveticaBold);
     if (needsUnicodeFont(name)) {
       try {

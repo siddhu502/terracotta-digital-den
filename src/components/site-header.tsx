@@ -55,7 +55,8 @@ export function SiteHeader({ query, onQueryChange }: Props) {
             <Input
               value={query ?? ""}
               onChange={(e) => onQueryChange(e.target.value)}
-              placeholder="प्लॅनर, रेझ्युमे, आर्ट प्रिंट शोधा…"
+              placeholder="शोधा…"
+              autoComplete="off"
               className="pl-9"
               aria-label="उत्पादने शोधा"
             />

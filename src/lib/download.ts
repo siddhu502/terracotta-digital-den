@@ -1,10 +1,16 @@
 import { personalizePdf } from "@/lib/personalize.functions";
 
-/** Builds the personalized PDF on the server and saves it in the browser. */
-export async function downloadPersonalizedPdf(productId: string, name: string) {
+/** Builds the personalized PDF on the server and returns it as a Blob. */
+export async function buildPersonalizedPdf(productId: string, name?: string) {
   const { base64, fileName } = await personalizePdf({ data: { productId, name } });
   const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
   const blob = new Blob([bytes], { type: "application/pdf" });
+  return { blob, fileName };
+}
+
+/** Builds the personalized PDF on the server and saves it in the browser. */
+export async function downloadPersonalizedPdf(productId: string, name?: string) {
+  const { blob, fileName } = await buildPersonalizedPdf(productId, name);
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
