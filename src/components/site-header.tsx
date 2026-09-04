@@ -80,13 +80,6 @@ export function SiteHeader({ query, onQueryChange }: Props) {
           >
             माझे स्टोअर
           </Link>
-          <Link
-            to="/admin"
-            className="rounded-lg px-3 py-2 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-            activeProps={{ className: "bg-secondary text-foreground" }}
-          >
-            प्रशासन
-          </Link>
           {signedIn ? (
             <Button variant="ghost" size="sm" onClick={handleSignOut}>
               <LogOut className="size-4" />

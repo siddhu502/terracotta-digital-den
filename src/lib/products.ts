@@ -123,4 +123,10 @@ export async function deleteProduct(id: string) {
 }
 
 export const formatPrice = (price: number) =>
-  new Intl.NumberFormat("mr-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(price);
+  price === 0
+    ? "मोफत"
+    : new Intl.NumberFormat("mr-IN", {
+        style: "currency",
+        currency: "INR",
+        maximumFractionDigits: 0,
+      }).format(price);

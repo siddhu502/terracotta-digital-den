@@ -60,6 +60,29 @@ export const createRazorpayOrder = createServerFn({ method: "POST" })
     };
   });
 
+export const claimFreeProduct = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({ productId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { data: product, error: productError } = await context.supabase
+      .from("products")
+      .select("id, price, pdf_url")
+      .eq("id", data.productId)
+      .single();
+    if (productError || !product) throw new Error("उत्पादन सापडले नाही.");
+    if (!product.pdf_url) throw new Error("या उत्पादनाची फाईल अजून जोडलेली नाही.");
+    if (Number(product.price) !== 0) throw new Error("हे उत्पादन मोफत नाही.");
+
+    const { error } = await context.supabase.from("purchases").insert({
+      user_id: context.userId,
+      product_id: product.id,
+      amount: 0,
+      currency: "INR",
+    });
+    if (error && error.code !== "23505") throw new Error("मोफत PDF तुमच्या स्टोअरमध्ये जोडता आली नाही.");
+    return { ok: true as const };
+  });
+
 export const verifyRazorpayPayment = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) =>
@@ -73,8 +96,9 @@ export const verifyRazorpayPayment = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
+    const keyId = process.env["RAZORPAY_KEY_ID"];
     const keySecret = process.env["RAZORPAY_KEY_SECRET"];
-    if (!keySecret) throw new Error("Payment gateway is not configured.");
+    if (!keyId || !keySecret) throw new Error("Payment gateway is not configured.");
 
     const { createHmac, timingSafeEqual } = await import("crypto");
     const expected = createHmac("sha256", keySecret)
@@ -86,16 +110,42 @@ export const verifyRazorpayPayment = createServerFn({ method: "POST" })
       throw new Error("Payment verification failed.");
     }
 
-    const { data: product } = await context.supabase
+    const { data: product, error: productError } = await context.supabase
       .from("products")
-      .select("price")
+      .select("id, price")
       .eq("id", data.productId)
       .single();
+    if (productError || !product || Number(product.price) <= 0) {
+      throw new Error("उत्पादनाची किंमत वैध नाही.");
+    }
+
+    const orderResponse = await fetch(`https://api.razorpay.com/v1/orders/${data.orderId}`, {
+      headers: { Authorization: `Basic ${btoa(`${keyId}:${keySecret}`)}` },
+    });
+    if (!orderResponse.ok) throw new Error("पेमेंट ऑर्डर पडताळता आली नाही.");
+    const paidOrder = (await orderResponse.json()) as {
+      amount: number;
+      amount_paid: number;
+      currency: string;
+      status: string;
+      receipt?: string;
+    };
+    const expectedAmount = Math.round(Number(product.price) * 100);
+    const expectedReceiptPrefix = `ps_${product.id.slice(0, 8)}_`;
+    if (
+      paidOrder.amount !== expectedAmount ||
+      paidOrder.amount_paid !== expectedAmount ||
+      paidOrder.currency !== "INR" ||
+      paidOrder.status !== "paid" ||
+      !paidOrder.receipt?.startsWith(expectedReceiptPrefix)
+    ) {
+      throw new Error("पेमेंट उत्पादनाशी जुळत नाही.");
+    }
 
     const { error } = await context.supabase.from("purchases").insert({
       user_id: context.userId,
       product_id: data.productId,
-      amount: product?.price ?? 0,
+      amount: product.price,
       currency: "INR",
       razorpay_order_id: data.orderId,
       razorpay_payment_id: data.paymentId,
