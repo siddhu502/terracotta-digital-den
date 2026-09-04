@@ -1,5 +1,5 @@
 # Roadmap
 
-- [ ] Fix Razorpay order authentication and paid checkout
-- [ ] Fix free personalized PDF download runtime error
-- [ ] Verify paid checkout opens and free PDF downloads
+- [ ] Replace the invalid Razorpay key pair and verify paid checkout opens
+- [x] Fix free personalized PDF download runtime error
+- [x] Verify free personalized PDF download and watermark output
