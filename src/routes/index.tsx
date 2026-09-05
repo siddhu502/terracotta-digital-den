@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { NameDialog } from "@/components/name-dialog";
+import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -176,11 +177,7 @@ function Marketplace() {
         )}
       </main>
 
-      <footer className="border-t border-border/70 py-10">
-        <div className="mx-auto max-w-6xl px-4 text-sm text-muted-foreground sm:px-6">
-          {BRAND_NAME} — प्रत्येक खरेदी म्हणजे डिजिटल डाउनलोड. शिपिंग नाही, कधीच नाही.
-        </div>
-      </footer>
+      <SiteFooter />
 
       <ProductDialog
         product={selected}
