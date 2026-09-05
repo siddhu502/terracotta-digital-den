@@ -32,6 +32,44 @@ export type Database = {
         }
         Relationships: []
       }
+      downloads: {
+        Row: {
+          buyer_name: string
+          created_at: string
+          email: string | null
+          id: string
+          product_id: string
+          product_title: string
+          user_id: string
+        }
+        Insert: {
+          buyer_name: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          product_id: string
+          product_title: string
+          user_id: string
+        }
+        Update: {
+          buyer_name?: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          product_id?: string
+          product_title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "downloads_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           category: string
