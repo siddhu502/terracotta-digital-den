@@ -120,6 +120,19 @@ export const personalizePdf = createServerFn({ method: "POST" })
     pdf.setTitle(`${product.title} — ${name}`);
     const bytes = await pdf.save();
 
+    // Record the download for the admin analytics view.
+    const email =
+      (context.claims as { email?: string } | undefined)?.email ??
+      (await supabaseAdmin.auth.admin.getUserById(context.userId)).data.user?.email ??
+      null;
+    await supabaseAdmin.from("downloads").insert({
+      user_id: context.userId,
+      email,
+      product_id: data.productId,
+      product_title: product.title,
+      buyer_name: name,
+    });
+
     return {
       fileName: `${product.title.replace(/[^\w\u0900-\u097F -]/g, "").trim() || "smart-ness"}-${name.replace(/\s+/g, "_")}.pdf`,
       base64: Buffer.from(bytes).toString("base64"),
