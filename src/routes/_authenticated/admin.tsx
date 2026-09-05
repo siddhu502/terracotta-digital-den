@@ -1,8 +1,25 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { FileText, ImageIcon, Loader2, Pencil, Plus, Tags, Trash2, X } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import {
+  BarChart3,
+  Download,
+  FileText,
+  ImageIcon,
+  IndianRupee,
+  Loader2,
+  Package,
+  Pencil,
+  Plus,
+  Tags,
+  Trash2,
+  Users,
+  X,
+} from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
+
+import { getAdminAnalytics } from "@/lib/analytics.functions";
 
 import { SiteHeader } from "@/components/site-header";
 import { Badge } from "@/components/ui/badge";
@@ -85,6 +102,7 @@ function AdminPage() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [newCategory, setNewCategory] = useState("");
   const [pricing, setPricing] = useState<"free" | "paid">("paid");
+  const [tab, setTab] = useState<"inventory" | "analytics">("inventory");
   const imageRef = useRef<HTMLInputElement>(null);
   const pdfRef = useRef<HTMLInputElement>(null);
 
@@ -209,7 +227,20 @@ function AdminPage() {
           </p>
         </div>
 
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,420px)_1fr]">
+        <div className="mb-8 grid grid-cols-2 gap-2 rounded-xl border border-border bg-card p-1 sm:max-w-sm">
+          <Button variant={tab === "inventory" ? "default" : "ghost"} onClick={() => setTab("inventory")}>
+            <Package className="size-4" />
+            Inventory
+          </Button>
+          <Button variant={tab === "analytics" ? "default" : "ghost"} onClick={() => setTab("analytics")}>
+            <BarChart3 className="size-4" />
+            Analytics
+          </Button>
+        </div>
+
+        {tab === "analytics" ? <AnalyticsPanel /> : null}
+
+        <div className={tab === "inventory" ? "grid gap-8 lg:grid-cols-[minmax(0,420px)_1fr]" : "hidden"}>
           <div className="space-y-8">
             <section className="rounded-2xl border border-border bg-card p-6 shadow-card">
               <div className="mb-5 flex items-center justify-between">
