@@ -331,12 +331,14 @@ function ProductDialog({
             } catch (err) {
               toast.error(err instanceof Error ? err.message : "पेमेंट पडताळणी अयशस्वी.");
             } finally {
+              setPaying(false);
               setBusy(false);
             }
           })();
         },
         modal: {
           ondismiss: () => {
+            setPaying(false);
             setBusy(false);
             toast.info("पेमेंट रद्द केले.");
           },
@@ -344,6 +346,7 @@ function ProductDialog({
       });
       rzp.open();
     } catch (err) {
+      setPaying(false);
       setBusy(false);
       toast.error(err instanceof Error ? err.message : "पेमेंट सुरू करता आले नाही.");
     }
