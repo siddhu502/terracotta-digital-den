@@ -1,9 +1,10 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Download, Loader2, Search, ShieldCheck, Sparkles } from "lucide-react";
+import { Download, Loader2, Search, ShieldCheck } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import heroAsset from "@/assets/smart-ness-hero.jpeg.asset.json";
 
 import { NameDialog } from "@/components/name-dialog";
 import { SiteFooter } from "@/components/site-footer";
@@ -97,16 +98,16 @@ function Marketplace() {
     <div className="min-h-screen">
       <SiteHeader query={query} onQueryChange={setQuery} />
 
-      <section className="bg-hero-wash border-b border-border/70">
-        <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 md:py-24">
-          <Badge variant="secondary" className="mb-5 gap-1.5">
-            <Sparkles className="size-3.5" />
-            प्रत्येक PDF फक्त {formatPrice(49)}
-          </Badge>
-          <h1 className="max-w-2xl text-4xl leading-tight md:text-6xl">{BRAND_NAME}</h1>
-          <p className="mt-5 max-w-xl text-base text-muted-foreground md:text-lg">{DESCRIPTION}</p>
-
-          <div className="mt-8 flex max-w-xl items-center gap-2 rounded-2xl border border-border bg-card p-2 shadow-card">
+      <section className="border-b border-border/70">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <img
+            src={heroAsset.url}
+            alt="Smart Ness — स्मार्ट PDF अभ्यास साहित्य"
+            className="block w-full"
+          />
+        </div>
+        <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+          <div className="flex max-w-xl items-center gap-2 rounded-2xl border border-border bg-card p-2 shadow-card">
             <Search className="ml-2 size-4 shrink-0 text-muted-foreground" />
             <Input
               value={query}
