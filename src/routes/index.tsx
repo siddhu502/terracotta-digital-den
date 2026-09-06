@@ -247,6 +247,9 @@ function ProductDialog({
   const claimFree = useServerFn(claimFreeProduct);
   const [busy, setBusy] = useState(false);
   const [askName, setAskName] = useState(false);
+  // While Razorpay's own window is open, keep our dialogs closed so their
+  // focus trap / pointer-events lock doesn't block clicks inside Razorpay.
+  const [paying, setPaying] = useState(false);
 
   async function handleBuyClick() {
     if (!product) return;
