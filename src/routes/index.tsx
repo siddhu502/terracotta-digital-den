@@ -1,9 +1,10 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Download, Loader2, Search, ShieldCheck, Sparkles } from "lucide-react";
+import { Download, Loader2, Search, ShieldCheck } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import heroAsset from "@/assets/smart-ness-hero.jpeg.asset.json";
 
 import { NameDialog } from "@/components/name-dialog";
 import { SiteFooter } from "@/components/site-footer";
