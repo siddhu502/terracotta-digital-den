@@ -301,6 +301,12 @@ function ProductDialog({
       if (!window.Razorpay) throw new Error("पेमेंट विंडो उघडता आली नाही.");
       const { data: userData } = await supabase.auth.getUser();
 
+      // Close our own dialogs so Razorpay's window receives clicks/typing.
+      setPaying(true);
+      setAskName(false);
+      await new Promise((r) => setTimeout(r, 250));
+
+
       const productId = product.id;
       const rzp = new window.Razorpay({
         key: order.keyId,
