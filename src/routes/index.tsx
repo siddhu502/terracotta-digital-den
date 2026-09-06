@@ -354,7 +354,7 @@ function ProductDialog({
 
   return (
     <>
-      <Dialog open={!!product && !askName} onOpenChange={(open) => !open && onClose()}>
+      <Dialog open={!!product && !askName && !paying} onOpenChange={(open) => !open && onClose()}>
         <DialogContent className="max-w-3xl overflow-hidden p-0">
           {product ? (
             <div className="grid md:grid-cols-2">
