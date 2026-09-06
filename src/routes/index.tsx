@@ -106,8 +106,8 @@ function Marketplace() {
             className="block w-full"
           />
         </div>
-
-          <div className="mt-8 flex max-w-xl items-center gap-2 rounded-2xl border border-border bg-card p-2 shadow-card">
+        <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+          <div className="flex max-w-xl items-center gap-2 rounded-2xl border border-border bg-card p-2 shadow-card">
             <Search className="ml-2 size-4 shrink-0 text-muted-foreground" />
             <Input
               value={query}
