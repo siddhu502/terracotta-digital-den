@@ -512,3 +512,116 @@ function AdminPage() {
     </div>
   );
 }
+
+function AnalyticsPanel() {
+  const fetchAnalytics = useServerFn(getAdminAnalytics);
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["admin-analytics"],
+    queryFn: () => fetchAnalytics(),
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center gap-2 py-12 text-sm text-muted-foreground">
+        <Loader2 className="size-4 animate-spin" /> लोड होत आहे…
+      </div>
+    );
+  }
+  if (error || !data) {
+    return <p className="text-sm text-destructive">विश्लेषण लोड होऊ शकले नाही.</p>;
+  }
+
+  const revenue = data.purchases.reduce((sum, p) => sum + p.amount, 0);
+  const buyers = new Set(data.purchases.map((p) => p.email ?? p.id)).size;
+  const fmtDate = (iso: string) =>
+    new Date(iso).toLocaleString("mr-IN", { dateStyle: "medium", timeStyle: "short" });
+
+  return (
+    <div className="space-y-8">
+      <div className="grid gap-4 sm:grid-cols-3">
+        {[
+          { icon: Download, label: "एकूण डाउनलोड", value: String(data.downloads.length) },
+          { icon: Users, label: "खरेदीदार", value: String(buyers) },
+          { icon: IndianRupee, label: "एकूण उत्पन्न", value: formatPrice(revenue) },
+        ].map(({ icon: Icon, label, value }) => (
+          <div key={label} className="rounded-2xl border border-border bg-card p-5 shadow-card">
+            <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <Icon className="size-4 text-primary" /> {label}
+            </p>
+            <p className="mt-2 font-display text-2xl">{value}</p>
+          </div>
+        ))}
+      </div>
+
+      <section>
+        <h2 className="mb-3 text-xl">डाउनलोड</h2>
+        <div className="overflow-x-auto rounded-2xl border border-border bg-card shadow-card">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>केव्हा</TableHead>
+                <TableHead>ईमेल</TableHead>
+                <TableHead>PDF</TableHead>
+                <TableHead>वॉटरमार्क / शीर्षक नाव</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.downloads.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center text-muted-foreground">
+                    अजून कोणी डाउनलोड केलेले नाही.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                data.downloads.map((d) => (
+                  <TableRow key={d.id}>
+                    <TableCell className="whitespace-nowrap">{fmtDate(d.created_at)}</TableCell>
+                    <TableCell>{d.email ?? "—"}</TableCell>
+                    <TableCell>{d.product_title}</TableCell>
+                    <TableCell>{d.buyer_name}</TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </section>
+
+      <section>
+        <h2 className="mb-3 text-xl">खरेदी</h2>
+        <div className="overflow-x-auto rounded-2xl border border-border bg-card shadow-card">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>केव्हा</TableHead>
+                <TableHead>ईमेल</TableHead>
+                <TableHead>PDF</TableHead>
+                <TableHead>नाव</TableHead>
+                <TableHead className="text-right">रक्कम</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.purchases.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center text-muted-foreground">
+                    अजून खरेदी झालेली नाही.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                data.purchases.map((p) => (
+                  <TableRow key={p.id}>
+                    <TableCell className="whitespace-nowrap">{fmtDate(p.created_at)}</TableCell>
+                    <TableCell>{p.email ?? "—"}</TableCell>
+                    <TableCell>{p.product_title}</TableCell>
+                    <TableCell>{p.buyer_name ?? "—"}</TableCell>
+                    <TableCell className="text-right">{formatPrice(p.amount)}</TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </section>
+    </div>
+  );
+}
