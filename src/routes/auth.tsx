@@ -62,11 +62,13 @@ function AuthPage() {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
       } else {
-        const { error } = await supabase.auth.signUp({ email, password });
+        const { data, error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
-        toast.success("Account created! Check your email to confirm, then sign in.");
-        setMode("sign-in");
-        return;
+        if (!data.session) {
+          const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+          if (signInError) throw signInError;
+        }
+        toast.success("खाते तयार झाले! तुम्ही लॉगिन झाला आहात.");
       }
       await afterSignIn();
     } catch (err) {
