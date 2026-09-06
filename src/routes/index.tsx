@@ -247,6 +247,9 @@ function ProductDialog({
   const claimFree = useServerFn(claimFreeProduct);
   const [busy, setBusy] = useState(false);
   const [askName, setAskName] = useState(false);
+  // While Razorpay's own window is open, keep our dialogs closed so their
+  // focus trap / pointer-events lock doesn't block clicks inside Razorpay.
+  const [paying, setPaying] = useState(false);
 
   async function handleBuyClick() {
     if (!product) return;
@@ -298,6 +301,12 @@ function ProductDialog({
       if (!window.Razorpay) throw new Error("पेमेंट विंडो उघडता आली नाही.");
       const { data: userData } = await supabase.auth.getUser();
 
+      // Close our own dialogs so Razorpay's window receives clicks/typing.
+      setPaying(true);
+      setAskName(false);
+      await new Promise((r) => setTimeout(r, 250));
+
+
       const productId = product.id;
       const rzp = new window.Razorpay({
         key: order.keyId,
@@ -322,12 +331,14 @@ function ProductDialog({
             } catch (err) {
               toast.error(err instanceof Error ? err.message : "पेमेंट पडताळणी अयशस्वी.");
             } finally {
+              setPaying(false);
               setBusy(false);
             }
           })();
         },
         modal: {
           ondismiss: () => {
+            setPaying(false);
             setBusy(false);
             toast.info("पेमेंट रद्द केले.");
           },
@@ -335,6 +346,7 @@ function ProductDialog({
       });
       rzp.open();
     } catch (err) {
+      setPaying(false);
       setBusy(false);
       toast.error(err instanceof Error ? err.message : "पेमेंट सुरू करता आले नाही.");
     }
@@ -342,7 +354,7 @@ function ProductDialog({
 
   return (
     <>
-      <Dialog open={!!product && !askName} onOpenChange={(open) => !open && onClose()}>
+      <Dialog open={!!product && !askName && !paying} onOpenChange={(open) => !open && onClose()}>
         <DialogContent className="max-w-3xl overflow-hidden p-0">
           {product ? (
             <div className="grid md:grid-cols-2">
