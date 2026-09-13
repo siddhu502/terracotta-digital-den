@@ -82,7 +82,7 @@ export type Database = {
           title: string
         }
         Insert: {
-          category: string
+          category?: string
           created_at?: string
           description?: string
           id?: string
