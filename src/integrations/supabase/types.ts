@@ -14,160 +14,7 @@ export type Database = {
   }
   public: {
     Tables: {
-      categories: {
-        Row: {
-          created_at: string
-          id: string
-          name: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          name: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          name?: string
-        }
-        Relationships: []
-      }
-      downloads: {
-        Row: {
-          buyer_name: string
-          created_at: string
-          email: string | null
-          id: string
-          product_id: string
-          product_title: string
-          user_id: string
-        }
-        Insert: {
-          buyer_name: string
-          created_at?: string
-          email?: string | null
-          id?: string
-          product_id: string
-          product_title: string
-          user_id: string
-        }
-        Update: {
-          buyer_name?: string
-          created_at?: string
-          email?: string | null
-          id?: string
-          product_id?: string
-          product_title?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "downloads_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "products"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      products: {
-        Row: {
-          category: string
-          created_at: string
-          description: string
-          id: string
-          image_url: string | null
-          pdf_url: string | null
-          price: number
-          title: string
-        }
-        Insert: {
-          category: string
-          created_at?: string
-          description?: string
-          id?: string
-          image_url?: string | null
-          pdf_url?: string | null
-          price?: number
-          title: string
-        }
-        Update: {
-          category?: string
-          created_at?: string
-          description?: string
-          id?: string
-          image_url?: string | null
-          pdf_url?: string | null
-          price?: number
-          title?: string
-        }
-        Relationships: []
-      }
-      purchases: {
-        Row: {
-          amount: number
-          buyer_name: string | null
-          created_at: string
-          currency: string
-          id: string
-          product_id: string
-          razorpay_order_id: string | null
-          razorpay_payment_id: string | null
-          user_id: string
-        }
-        Insert: {
-          amount?: number
-          buyer_name?: string | null
-          created_at?: string
-          currency?: string
-          id?: string
-          product_id: string
-          razorpay_order_id?: string | null
-          razorpay_payment_id?: string | null
-          user_id: string
-        }
-        Update: {
-          amount?: number
-          buyer_name?: string | null
-          created_at?: string
-          currency?: string
-          id?: string
-          product_id?: string
-          razorpay_order_id?: string | null
-          razorpay_payment_id?: string | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "purchases_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "products"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      user_roles: {
-        Row: {
-          created_at: string
-          id: string
-          role: Database["public"]["Enums"]["app_role"]
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          role: Database["public"]["Enums"]["app_role"]
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          role?: Database["public"]["Enums"]["app_role"]
-          user_id?: string
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Views: {
       [_ in never]: never
@@ -176,7 +23,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      app_role: "admin" | "user"
+      [_ in never]: never
     }
     CompositeTypes: {
       [_ in never]: never
@@ -303,8 +150,6 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {
-      app_role: ["admin", "user"],
-    },
+    Enums: {},
   },
 } as const
