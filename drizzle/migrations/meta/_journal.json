@@ -8,6 +8,13 @@
       "when": 1789280494792,
       "tag": "0000_rebuild_smart_ness_schema",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1789280529442,
+      "tag": "0001_storage_policies",
+      "breakpoints": true
     }
   ]
 }
